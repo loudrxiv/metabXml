@@ -1,0 +1,154 @@
+---
+title: "Metabolomics x ML: Figure 4"
+author: Mark Maher Makram Ebeid-Attalla
+date: 2025-07-11
+output: html_document
+---
+
+# Load libraries
+```{r}
+
+library(ggpubr)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(tidyr)
+library(tidyverse)
+library(ggthemes)   # For additional themes
+library(ggalluvial) # For Sankey diagrams
+library(showtext)
+library(readxl)
+library(ggradar)
+library(scales)      # muted() etc.
+library(purrr)       # map() for functional loops
+library(readxl)
+library(tidyverse)
+library(ggalluvial)
+library(scales)      # wrap_format()
+
+
+```
+# Generate hardcoded plots for Figure 3
+```{r}
+
+# ── 1.  Read & tidy
+file_path <- "metabolites-review/data/technique-deliniation.xlsx"
+raw <- read_excel(file_path, sheet = 1, .name_repair = "unique")
+
+clean <- raw %>%
+  mutate(Category = if_else(is.na(Count),
+                            `Machine Learning Technique`, NA_character_)) %>%
+  fill(Category) %>%
+  filter(!is.na(Count))
+
+```
+```{r}
+
+# ── 2.  Collapse rare methods into ‘Other (<2)’
+edge_tbl <- clean %>%
+  group_by(Category, Method = `Machine Learning Technique`) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  mutate(
+    Method = if_else(Count < 2, "Other (<2)", Method)
+  ) %>%                                   # re-count because of lumping
+  group_by(Category, Method) %>%
+  summarise(Count = sum(Count), .groups = "drop")
+
+# order
+cat_order <- edge_tbl %>%
+  group_by(Category) %>% summarise(Total = sum(Count)) %>%
+  arrange(desc(Total)) %>% pull(Category)
+
+met_order <- edge_tbl %>%
+  group_by(Method) %>% summarise(Total = sum(Count)) %>%
+  arrange(desc(Total)) %>% pull(Method)
+
+edge_tbl <- edge_tbl %>%
+  mutate(
+    Category = factor(Category, levels = cat_order),
+    Method   = factor(Method,   levels = met_order)
+  )
+
+# ── 3.  Build the alluvial plot
+
+break_vec <- c(
+  "Dimensionality Reduction and Feature Extraction" =
+    "Dimensionality\nReduction\nand Feature Extraction",
+  "General Purpose and Ensemble Models" =
+    "General Purpose\nand Ensemble Models",
+  "Other Statistical and Graphical Methods" =
+    "Other Statistical\nand Graphical Methods",
+  "principal component analysis (PCA)" =
+    "principal component\nanalysis (PCA)",
+  "linear mixed-effects models (LMM)" =
+    "linear mixed-effects\nmodels (LMM)",
+  "mixed graphical models (MGM)" =
+    "mixed graphical\nmodels (MGM)",
+  "uniform manifold approximation and projection (UMAP)" =
+    "uniform manifold approximation\nand projection (UMAP)",
+  "Gaussian mixture models (GMM)" =
+    "Gaussian mixture\nmodels (GMM)",
+  "parallel factor analysis (PARAFAC)" =
+    "parallel factor\nanalysis (PARAFAC)"
+)
+
+edge_tbl <- edge_tbl %>%
+  mutate(
+    Category_lbl = recode(as.character(Category), !!!break_vec),
+    Method_lbl   = recode(as.character(Method),   !!!break_vec)
+  )
+
+p <- ggplot(edge_tbl,
+            aes(axis1 = Category_lbl,
+                axis2 = Method_lbl,
+                y     = Count)) +
+
+  # flows
+  geom_alluvium(aes(fill = Category),
+                width = 8/100, colour = "grey40", alpha = 1, knot.pos = 0.3) +
+
+  # strata
+  geom_stratum(width = 30/100, colour = "grey40", fill = "white") +
+
+  # ──  label block
+  geom_text(stat  = "stratum",
+            aes(label = after_stat(stratum)),
+            fontface = "bold",
+            size = 3.6,                     # adjust if you need larger/smaller
+            colour = "black",
+            hjust = 0.5, vjust = 0.5) +     # centres text inside the stratum
+
+  scale_x_discrete(limits = c("ML category", "ML technique"),
+                   expand = expansion(mult = 0.30)) +
+
+  scale_fill_brewer(palette = "Set3", guide = "none") +
+
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.05))) +
+
+  labs(
+    #title = "Figure E | Machine-learning techniques used per analysis category",
+    y = "Number of studies"
+  ) +
+
+  theme_void(base_family = "Helvetica", base_size = 11) +
+  theme(
+    plot.title  = element_text(face = "bold", hjust = .5, size = 13),
+    plot.margin = margin(15, 60, 15, 60)   # extra room for labels
+  )
+
+print(p)
+
+```
+```{r}
+
+# ── 4.  Export vector graphics ------------------------------------------------
+ggsave(
+  "metabolites-review/figures/Figure_E_Sankey_Category_to_Technique.pdf",
+  plot = p,
+  width = 28,
+  height = 16,
+  units = "cm",
+  device = cairo_pdf
+)
+
+```
