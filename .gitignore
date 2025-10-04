@@ -1,1 +1,4 @@
 data/
+
+# Get rid of citation impact figure
+figures/citation-impact.Rmd

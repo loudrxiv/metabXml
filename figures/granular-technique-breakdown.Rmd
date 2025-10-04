@@ -1,13 +1,10 @@
 ---
-title: "Metabolomics x ML: Figure 4"
+title: "MetabXML, Figure: Breakdown exactly which techniques are used"
 author: Mark Maher Makram Ebeid-Attalla
-date: 2025-07-11
 output: html_document
 ---
-
-# Load libraries
+# Libraries we use here in figure creation
 ```{r}
-
 library(ggpubr)
 library(ggplot2)
 library(dplyr)
@@ -25,26 +22,27 @@ library(readxl)
 library(tidyverse)
 library(ggalluvial)
 library(scales)      # wrap_format()
-
-
 ```
-# Generate hardcoded plots for Figure 3
+# Read in data from pertinent sheet in the datasets
+- Define file path and sheet name
 ```{r}
+excel_path <- "metabXml/data/datasets.xlsx"
+sheet      <- "technique-breakdown"
+```
+```{r}
+raw <- read_excel(excel_path, sheet=sheet, .name_repair="unique")
 
-# ── 1.  Read & tidy
-file_path <- "metabolites-review/data/technique-deliniation.xlsx"
-raw <- read_excel(file_path, sheet = 1, .name_repair = "unique")
-
+# It's messy, but since the formatting makes it so 
+# the headers will be NA, we can use that to our advantage.
 clean <- raw %>%
   mutate(Category = if_else(is.na(Count),
                             `Machine Learning Technique`, NA_character_)) %>%
   fill(Category) %>%
   filter(!is.na(Count))
-
 ```
+# Manipulate the data
 ```{r}
-
-# ── 2.  Collapse rare methods into ‘Other (<2)’
+# We create 'other' for techniques used in <2 studies to reduce clutter
 edge_tbl <- clean %>%
   group_by(Category, Method = `Machine Learning Technique`) %>%
   summarise(Count = sum(Count), .groups = "drop") %>%
@@ -54,7 +52,7 @@ edge_tbl <- clean %>%
   group_by(Category, Method) %>%
   summarise(Count = sum(Count), .groups = "drop")
 
-# order
+# We want order
 cat_order <- edge_tbl %>%
   group_by(Category) %>% summarise(Total = sum(Count)) %>%
   arrange(desc(Total)) %>% pull(Category)
@@ -69,8 +67,7 @@ edge_tbl <- edge_tbl %>%
     Method   = factor(Method,   levels = met_order)
   )
 
-# ── 3.  Build the alluvial plot
-
+# Getting this to look nice is SO annoying
 break_vec <- c(
   "Dimensionality Reduction and Feature Extraction" =
     "Dimensionality\nReduction\nand Feature Extraction",
@@ -78,18 +75,12 @@ break_vec <- c(
     "General Purpose\nand Ensemble Models",
   "Other Statistical and Graphical Methods" =
     "Other Statistical\nand Graphical Methods",
-  "principal component analysis (PCA)" =
-    "principal component\nanalysis (PCA)",
-  "linear mixed-effects models (LMM)" =
-    "linear mixed-effects\nmodels (LMM)",
-  "mixed graphical models (MGM)" =
-    "mixed graphical\nmodels (MGM)",
-  "uniform manifold approximation and projection (UMAP)" =
-    "uniform manifold approximation\nand projection (UMAP)",
-  "Gaussian mixture models (GMM)" =
-    "Gaussian mixture\nmodels (GMM)",
-  "parallel factor analysis (PARAFAC)" =
-    "parallel factor\nanalysis (PARAFAC)"
+  "Principal Component Analysis"="PCA",
+  "Linear Mixed-Effects Models"="LMM",
+  "Mixed Graphical Models"="MGM",
+  "Uniform Nanifold Approximation and Projection"="UMAP",
+  "Gaussian Mixture Models"="GMM",
+  "Parallel Factor Analysis"="PARAFAC"
 )
 
 edge_tbl <- edge_tbl %>%
@@ -137,18 +128,29 @@ p <- ggplot(edge_tbl,
   )
 
 print(p)
-
 ```
+# Save the plot
 ```{r}
+# Should already exist, but just in case
+dir.create("metabXml/figures", showWarnings=FALSE, recursive=TRUE)
 
-# ── 4.  Export vector graphics ------------------------------------------------
-ggsave(
-  "metabolites-review/figures/Figure_E_Sankey_Category_to_Technique.pdf",
-  plot = p,
-  width = 28,
-  height = 16,
-  units = "cm",
-  device = cairo_pdf
+ggsave( # PDF
+  filename = "metabXml/figures/Fig_granular-technique-breakdown.pdf",
+  plot = p, width = 12, height = 6.5, units = "in", device = cairo_pdf
 )
 
+ggsave( # PNG
+  filename = "metabXml/figures/Fig_granular-technique-breakdown.png",
+  plot = p, width = 12, height = 6.5, units = "in",
+  bg = "white", dpi = 600
+)
+
+if (requireNamespace("svglite", quietly = TRUE)) { # SVG
+  svglite::svglite(
+    file = "metabXml/figures/Fig_granular-technique-breakdown.svg",
+    width = 12, height = 6.5, bg = "white"
+  )
+  print(p)
+  dev.off()
+}
 ```
