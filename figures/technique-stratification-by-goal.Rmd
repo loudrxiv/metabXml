@@ -55,19 +55,22 @@ df <- df |> # make it nice
   )
 
 # Our labels are long
-wrap_goal <- scales::wrap_format(20)
-wrap_leg  <- scales::wrap_format(28)
+# wrap_goal <- scales::wrap_format(20)
+# wrap_leg  <- scales::wrap_format(28)
 
 df <- df |>
   mutate(
-    Goal_lbl      = wrap_goal(as.character(ResearchGoal)),
-    Technique_lbl = wrap_leg(as.character(Technique))
+    # Goal_lbl      = wrap_goal(as.character(ResearchGoal)),
+    # Technique_lbl = wrap_leg(as.character(Technique))
+    Goal_lbl      = as.character(ResearchGoal),
+    Technique_lbl = as.character(Technique)
   )
 
 df <- df |>
   mutate(
     Goal_lbl      = factor(Goal_lbl, levels = unique(Goal_lbl[order(ResearchGoal)])),
-    Technique_lbl = factor(Technique_lbl, levels = wrap_leg(tech_order))
+    #Technique_lbl = factor(Technique_lbl, levels = wrap_leg(tech_order))
+    Technique_lbl = factor(Technique_lbl, levels = tech_order)
   )
 
 # I need to not run out of colors for the stacked bars
@@ -89,37 +92,61 @@ if (requireNamespace("showtext", quietly = TRUE)) {
 # Create the plot
 ```{r}
 p <- ggplot(df, aes(x = Goal_lbl, y = Count, fill = Technique_lbl)) +
-  geom_col(width = 0.72, color = "grey92", linewidth = 0.3) +
+  geom_col(width = 0.6, color = "grey85", linewidth = 0.3) +
   scale_fill_manual(values = fill_pal, name = NULL) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.05)),
+    breaks = seq(0, 12, by = 2)
+  ) +
+  
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 25)) +
+  
   labs(
     x = NULL,
     y = "Number of occurrences",
     title = "Machine-learning technique use by research goal"
   ) +
-  theme_minimal(base_size = 12) +
+  
+  theme_minimal(base_size = 16) +
   theme(
-    plot.title        = element_text(face = "bold", hjust = 0.5, size = 20, margin = margin(b = 20)),
-    axis.title.y      = element_text(size = 14, margin = margin(r = 12), face = "bold", color = "grey20"),
-    axis.text.x       = element_text(size = 11, lineheight = 0.9, hjust = 0.5, 
-                                     margin = margin(t = 8), color = "grey20"),
-    axis.text.y       = element_text(size = 12, color = "grey20"),
-    axis.ticks.y      = element_line(color = "grey50", linewidth = 0.3),
-    axis.ticks.length = unit(3, "pt"),
-    legend.title      = element_blank(),
-    legend.text       = element_text(size = 11.5, lineheight = 0.95),
-    legend.key.height = unit(14, "pt"),
-    legend.key.width  = unit(14, "pt"),
-    legend.spacing.y  = unit(3, "pt"),
-    legend.box.margin = margin(t = 0, r = 10, b = 5, l = 20),
-    legend.position   = "right",
-    panel.grid.major.x= element_blank(),
-    panel.grid.minor  = element_blank(),
-    panel.grid.major.y= element_line(color = "grey88", linewidth = 0.4),
-    plot.margin       = margin(t = 20, r = 20, b = 30, l = 20),
-    plot.background   = element_rect(fill = "white", color = NA),
-    panel.background  = element_rect(fill = "white", color = NA)
+    plot.title = element_text(
+      face = "bold", 
+      hjust = 0.5, 
+      size = 22,
+      margin = margin(b = 25) # more space below title
+    ),
+    
+    axis.title.y = element_text(
+      size = 16,
+      face = "bold", 
+      color = "grey20",
+      margin = margin(r = 15) # space between title and labels
+    ),
+    
+    axis.text.y = element_text(size = 14, color = "grey20"),
+    axis.text.x = element_text(
+      size = 14,
+      color = "grey20",
+      angle = 90,     # rotate 90 degrees for readability
+      hjust = 1,      # align to the axis line
+      vjust = 0.5     # center on the tick mark
+    ),
+    
+    legend.text = element_text(size = 14, lineheight = 1.1),
+    legend.key.size = unit(16, "pt"), # Use key.size for square keys
+    legend.spacing.y = unit(6, "pt"),
+    legend.position = "right",    
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(color = "grey88", linewidth = 0.4),    
+    axis.line = element_line(color = "grey70", linewidth = 0.4),
+    axis.ticks = element_line(color = "grey70", linewidth = 0.4),
+    axis.ticks.length = unit(4, "pt"),    
+    plot.margin = margin(t = 20, r = 25, b = 20, l = 20),
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
   ) +
+  
   guides(fill = guide_legend(ncol = 1, byrow = TRUE, reverse = TRUE))
 
 print(p)
